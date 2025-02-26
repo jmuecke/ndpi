@@ -28,7 +28,7 @@ def filter(
         df_out = filter(df)
 
     len_out = df_out.select(pl.len()).collect()
-    filtered = ids.join(df_out, on=id_col, how="anti").collect().get_column()
+    filtered = ids.join(df_out, on=id_col, how="anti").collect().get_column(id_col)
 
     stat = {
         "name": name,
