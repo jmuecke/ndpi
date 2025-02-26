@@ -1,4 +1,4 @@
-from .init import *
+from .init import PROJ_ROOT
 
 # Names and path are compatible with ccds datascience
 
