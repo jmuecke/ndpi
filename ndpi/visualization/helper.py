@@ -6,7 +6,8 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from typing import Tuple
 
-from ndpi.config import FIGURES_DIR, c_figsize
+from ndpi.init import c_figsize
+from ndpi.config import FIGURES_DIR
 
 
 def fig_ax(figsize: tuple = c_figsize, **kwargs) -> Tuple[Figure, Axes]:
