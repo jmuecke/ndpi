@@ -3,3 +3,6 @@ docs:
 
 docs-serve: 
 	mkdocs serve
+
+docs-github-pages:
+	mkdocs gh-deploy
