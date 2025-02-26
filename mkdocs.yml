@@ -2,3 +2,6 @@ site_name: ndpi documentation
 
 plugins:
   - mkdocstrings
+
+theme:
+  name: material
