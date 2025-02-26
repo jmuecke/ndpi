@@ -3,5 +3,5 @@ name = "ndpi"
 authors = [
   {name = "Jonas Muecke", email = "jonas.muecke@tu-dresden.de" }
 ]
-version = 0.0.0
+version = "0.0.0"
 description = "Common data processing and presets"
