@@ -1,4 +1,3 @@
-from numpy import e
 import polars as pl
 from typing import Any, Callable, Tuple, Union
 
@@ -29,11 +28,7 @@ def filter(
         df_out = filter(df)
 
     len_out = df_out.select(pl.len()).collect()
-    filtered = (
-        (ids.filter(~pl.col(id_col).is_in(df_out.select(id_col))))
-        .select(id_col)
-        .collect()
-    )
+    filtered = ids.join(df_out, on=id_col, how="anti").collect().get_column()
 
     stat = {
         "name": name,
