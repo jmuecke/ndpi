@@ -1,7 +1,7 @@
 from copy import Error
 from enum import StrEnum
 from pathlib import Path
-from .constants import *
+from .constants import c_default_short_figsize
 
 
 class GraphDefaults(StrEnum):
@@ -20,6 +20,8 @@ def init(proj_root: Path, graph_defaults: GraphDefaults):
     """
     global PROJ_ROOT
     PROJ_ROOT = proj_root
+
+    set_graphic_defaults(graph_defaults)
 
 
 def set_graphic_defaults(graph_defaults: str):
