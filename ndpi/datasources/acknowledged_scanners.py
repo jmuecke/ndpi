@@ -1,9 +1,7 @@
 from pathlib import Path
-from numpy import exp
 import polars as pl
 import ipaddress
 from typing import Union
-from ndpi.init import EXTERNAL_DATA_DIR
 
 
 def dict_to_acknowledged_scanners(
