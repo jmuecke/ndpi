@@ -34,8 +34,8 @@ def load_data(
     existing = [file for file in name if os.path.isfile(file)]
     if not skip_missing:
         assert len(existing) == len(
-            name
-        ), f"Input files missing: {set(name) - set(existing)}"
+            files
+        ), f"Input files missing: {set([str(file) for file in files]) - set(existing)}"
 
     return pl.concat([pl.scan_parquet(file, **kwargs) for file in existing])
 
