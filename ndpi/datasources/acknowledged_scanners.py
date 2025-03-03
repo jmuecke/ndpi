@@ -57,7 +57,7 @@ def acknowledged_scanners(
     df = pl.concat(
         [
             pl.scan_csv(
-                f"{str(path)}/*/ips.txt",
+                f"{str(path)}/data/*/ips.txt",
                 include_file_paths=scanner_name_col,
                 has_header=False,
                 new_columns=[addr_col, scanner_name_col],
