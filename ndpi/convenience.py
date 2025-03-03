@@ -1,5 +1,4 @@
 from typing import Union
-from numpy import isin
 from .config import PROCESSED_DATA_DIR
 from pathlib import Path
 import polars as pl
@@ -41,7 +40,7 @@ def load_data(
     return pl.concat([pl.scan_parquet(file, **kwargs) for file in existing])
 
 
-def sink_parquet(path: Union[str, Path], **kwargs):
+def sink_parquet(df: pl.LazyFrame, path: Union[str, Path], **kwargs):
     """A wrapper for `pl.sink_parquet` that writes to `f"{path}.temp"` and then moves the file to `path`. This allows working with the existing dataset until the file is replaced
 
     Args:
@@ -49,11 +48,11 @@ def sink_parquet(path: Union[str, Path], **kwargs):
         **kwargs: kwargs for sink_parquet
     """
     temp_path = f"{path}.temp"
-    pl.sink_parquet(path=temp_path, **kwargs)
+    df.sink_parquet(path=temp_path, **kwargs)
     shutil.move(temp_path, path)
 
 
-def write_parquet(path: Union[str, Path], **kwargs):
+def write_parquet(df: pl.DataFrame, path: Union[str, Path], **kwargs):
     """A wrapper for `pl.write_parquet` that writes to `f"{path}.temp"` and then moves the file to `path`. This allows working with the existing dataset until the file is replaced
 
     Args:
@@ -61,5 +60,5 @@ def write_parquet(path: Union[str, Path], **kwargs):
         **kwargs: kwargs for sink_parquet
     """
     temp_path = f"{path}.temp"
-    pl.sink_parquet(path=temp_path, **kwargs)
+    df.write_parquet(file=temp_path, **kwargs)
     shutil.move(temp_path, path)
