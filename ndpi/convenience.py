@@ -31,7 +31,7 @@ def load_data(
 
     files = [directory / f"{file}{default_ext}" for file in files]
 
-    existing = [file for file in name if os.path.isfile(file)]
+    existing = [file for file in files if os.path.isfile(file)]
     if not skip_missing:
         assert len(existing) == len(
             files
