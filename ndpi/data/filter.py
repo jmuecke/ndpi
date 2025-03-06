@@ -60,6 +60,8 @@ def apply_filters(
     df = df.lazy()
 
     stats = []
+    filters = [item if isinstance(item, tuple) else (item, None) for item in filters]
+
     for f, *name in filters:
         name = name[0] if len(name) > 0 else None
 
