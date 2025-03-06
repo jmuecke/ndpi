@@ -30,8 +30,8 @@ def dict_to_acknowledged_scanners(
 def acknowledged_scanners(
     path: Path,
     additional_prefixes: Union[pl.DataFrame, pl.LazyFrame] = pl.DataFrame({}),
-    expand_subnets: bool = False,
-    scanner_name_col: str = "scanners",
+    expand_v4_subnets: bool = False,
+    scanner_name_col: str = "scanner",
     addr_col: str = "ip.addr",
 ) -> pl.LazyFrame:
     """Load list of acknowledged scanners from folder.
@@ -41,7 +41,6 @@ def acknowledged_scanners(
     ```make
     acknowledged_scanners:
        git clone https://gitlab.com/mcollins_at_isi/acknowledged_scanners.git data/external/acknowledged_scanners
-
     ```
 
     Args:
@@ -57,20 +56,44 @@ def acknowledged_scanners(
     df = pl.concat(
         [
             pl.scan_csv(
-                f"{str(path)}/data/*/ips.txt",
+                f"{str(path)}/data/*/*.txt",
                 include_file_paths=scanner_name_col,
                 has_header=False,
-                new_columns=[addr_col, scanner_name_col],
-            ).with_columns(pl.col(scanner_name_col).str.split("/").slice(-2)),
+                new_columns=[addr_col],
+                comment_prefix="#",
+            ).with_columns(pl.col(scanner_name_col).str.split("/").list.get(-2)),
             additional_prefixes.lazy(),
-        ]
-    )
+        ],
+        how="diagonal",
+        # Remove empty lines
+    ).filter(pl.col(addr_col).is_not_null())
 
-    if expand_subnets:
-        df = df.with_columns(
-            pl.col(addr_col).map_elements(
-                lambda x: [addr for addr in ipaddress.ip_network(x, strict=False)]
+    if expand_v4_subnets:
+        v4_subnet_condition = [
+            pl.col(addr_col).str.contains("/"),
+            pl.col(addr_col).str.contains("\."),
+        ]
+
+        df = df.with_row_index("id")
+
+        v4 = (
+            df.filter(v4_subnet_condition)
+            .with_columns(
+                pl.col(addr_col).map_elements(
+                    # lambda x: [str(addr) for addr in ipaddress.ip_network(x, strict=False)],
+                    lambda x: [
+                        str(addr)
+                        for addr in ipaddress.ip_network(x, strict=False)
+                        if "." in x
+                    ],
+                    return_dtype=pl.List(pl.String),
+                )
             )
-        ).explode(addr_col)
+            .explode(addr_col)
+        )
+
+        df = pl.concat([v4, df.join(v4, on="id", how="anti")]).drop("id")
+    # Input dataset may contain address and prefix, some addresses are also repeated
+    df = df.unique(addr_col)
 
     return df
