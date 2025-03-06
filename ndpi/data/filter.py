@@ -3,7 +3,7 @@ from typing import Any, Callable, Tuple, Union
 
 
 def filter(
-    df, filter: Union[pl.Expr, Callable], name: str, id_col="id"
+    df, filter: Union[pl.Expr, Callable], name: Union[str, None] = None, id_col="id"
 ) -> Tuple[pl.DataFrame, pl.DataFrame]:
     """Common filtering API. Returns filtered dataframe and metadata on the filtered IDs.
 
@@ -11,7 +11,7 @@ def filter(
         df: input dataframe
         id_col: column with unique value
         filter: polars expression or filter function that operates on a dataframe
-        name: label for the filtering step
+        name: label for this filtering step
 
     Returns:
         Tuple with filtered lazy dataframe and metadata
@@ -29,6 +29,10 @@ def filter(
 
     len_out = df_out.select(pl.len()).collect()
     filtered = ids.join(df_out, on=id_col, how="anti").collect().get_column(id_col)
+
+    if name is None:
+        # Add default name from function name
+        name = getattr(filter, "__name__", "Unknown").split("filter_", maxsplit=1)[-1]
 
     stat = {
         "name": name,
