@@ -4,7 +4,7 @@ from typing import Any, Callable, Tuple, Union
 
 def filter(
     df, filter: Union[pl.Expr, Callable], name: Union[str, None] = None, id_col="id"
-) -> Tuple[pl.DataFrame, pl.DataFrame]:
+) -> Tuple[pl.LazyFrame, pl.DataFrame]:
     """Common filtering API. Returns filtered dataframe and metadata on the filtered IDs.
 
     Args:
@@ -43,3 +43,26 @@ def filter(
     }
 
     return df_out, pl.DataFrame(stat)
+
+
+def apply_filters(
+    df: Union[pl.DataFrame, pl.LazyFrame], filters: list
+) -> Tuple[pl.LazyFrame, pl.DataFrame]:
+    """Apply a set of filters in order to `df`.
+
+    Args:
+        df: to apply filters on
+        filters: list of filters with (filter_function, optional_filter_name)
+
+    Returns:
+
+    """
+    df = df.lazy()
+
+    stats = []
+    for f, *name in filters:
+        name = name[0] if len(name) > 0 else None
+
+        df, stat = filter(df, f, name)
+        stats.append(stat)
+    return df, pl.concat(stats)

@@ -1,1 +1,1 @@
-from .filter import filter
+from .filter import filter, apply_filters
