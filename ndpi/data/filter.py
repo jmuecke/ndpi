@@ -2,6 +2,7 @@ from functools import partial
 import polars as pl
 from typing import Any, Callable, Tuple, Union
 from tqdm.auto import tqdm
+import time
 
 
 def filter(
@@ -18,6 +19,7 @@ def filter(
     Returns:
         Tuple with filtered lazy dataframe and metadata
     """
+    start = time.monotonic()
     # Cast to lazy
     df = df.lazy()
 
@@ -40,11 +42,13 @@ def filter(
                 "filter_", maxsplit=1
             )[-1]
 
+    end = time.monotonic()
     stat = {
         "name": name,
         "before": len_in,
         "after": len_out,
         "reduction": len_in - len_out,
+        "duration": end - start,
         "ids": [filtered],
     }
 
