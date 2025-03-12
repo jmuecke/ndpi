@@ -1,5 +1,6 @@
 import polars as pl
 from typing import Any, Callable, Tuple, Union
+from tqdm.auto import tqdm
 
 
 def filter(
@@ -62,7 +63,7 @@ def apply_filters(
     stats = []
     filters = [item if isinstance(item, tuple) else (item, None) for item in filters]
 
-    for f, *name in filters:
+    for f, *name in tqdm(filters):
         name = name[0] if len(name) > 0 else None
 
         df, stat = filter(df, f, name)
