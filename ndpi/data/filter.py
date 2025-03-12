@@ -1,3 +1,4 @@
+from functools import partial
 import polars as pl
 from typing import Any, Callable, Tuple, Union
 from tqdm.auto import tqdm
@@ -33,6 +34,10 @@ def filter(
 
     if name is None:
         # Add default name from function name
+        if isinstance(filter, partial):
+            name = getattr(filter.func, "__name__", "Unknown").split(
+                "filter_", maxsplit=1
+            )[-1]
         name = getattr(filter, "__name__", "Unknown").split("filter_", maxsplit=1)[-1]
 
     stat = {
