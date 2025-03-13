@@ -52,6 +52,24 @@ def sink_parquet(df: pl.LazyFrame, path: Union[str, Path], **kwargs):
     shutil.move(temp_path, path)
 
 
+def sink_parquet_scan_parquet(
+    df: pl.LazyFrame, path: Union[str, Path], sink_args: dict = {}, scan_args: dict = {}
+) -> pl.LazyFrame:
+    """Sink parquet and subsequently scan the parquet file. This speeds up scanning times compared to working with a scan_csv file.
+
+    Args:
+        df: Dataframe to sink
+        path: str or Path to destination file
+        sink_args: argumenets for `cv.sink_parquet`
+        scan_args: argumenets for `pl.scan_parquet`
+
+    Returns:
+        LazyFrame from scan_parquet
+    """
+    sink_parquet(df, path, **sink_args)
+    return pl.scan_parquet(path, **scan_args)
+
+
 def write_parquet(df: pl.DataFrame, path: Union[str, Path], **kwargs):
     """A wrapper for `pl.write_parquet` that writes to `f"{path}.temp"` and then moves the file to `path`. This allows working with the existing dataset until the file is replaced
 
