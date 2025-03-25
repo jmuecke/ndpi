@@ -1,4 +1,4 @@
 Visualization submodule
 ===
 
-:::ndpi.visualization.helper
+::: ndpi.visualization.helper
