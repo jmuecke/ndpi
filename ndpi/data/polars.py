@@ -1,4 +1,5 @@
-from typing import Union
+from collections.abc import Collection
+from typing import Any, Union
 import polars as pl
 
 
@@ -8,7 +9,7 @@ class Ndpi:
         self._expr = expr
 
     def list_index_of(
-        self, values: Union[pl.Expr, pl.Collection, pl.Series]
+        self, values: Union[pl.Expr, Collection[Any], pl.Series]
     ) -> pl.Expr:
         """Return the indices of elements in a list. This is not yet supported natively by polars.
 
