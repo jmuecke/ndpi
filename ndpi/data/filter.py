@@ -5,6 +5,15 @@ from tqdm.auto import tqdm
 import time
 
 
+def extract_function_name(filter: Callable):
+    name = getattr(filter, "__name__", "Unknown").split("filter_", maxsplit=1)[-1]
+    if isinstance(filter, partial):
+        name = getattr(filter.func, "__name__", "Unknown").split("filter_", maxsplit=1)[
+            -1
+        ]
+    return name
+
+
 def filter(
     df, filter: Union[pl.Expr, Callable], name: Union[str, None] = None, id_col="id"
 ) -> Tuple[pl.LazyFrame, pl.DataFrame]:
@@ -36,11 +45,7 @@ def filter(
 
     if name is None:
         # Add default name from function name
-        name = getattr(filter, "__name__", "Unknown").split("filter_", maxsplit=1)[-1]
-        if isinstance(filter, partial):
-            name = getattr(filter.func, "__name__", "Unknown").split(
-                "filter_", maxsplit=1
-            )[-1]
+        name = extract_function_name(filter)
 
     end = time.monotonic()
     stat = {
@@ -74,6 +79,8 @@ def apply_filters(
 
     for f, *name in (pbar := tqdm(filters)):
         name = name[0] if len(name) > 0 else None
+        if name is None:
+            name = extract_function_name(f)
         pbar.set_postfix_str(str(name))
 
         df, stat = filter(df, f, name)
