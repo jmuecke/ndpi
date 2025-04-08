@@ -72,8 +72,9 @@ def apply_filters(
     stats = []
     filters = [item if isinstance(item, tuple) else (item, None) for item in filters]
 
-    for f, *name in tqdm(filters):
+    for f, *name in (pbar := tqdm(filters)):
         name = name[0] if len(name) > 0 else None
+        pbar.set_postfix_str(str(name))
 
         df, stat = filter(df, f, name)
         stats.append(stat)
