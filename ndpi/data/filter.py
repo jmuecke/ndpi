@@ -6,17 +6,15 @@ import time
 
 
 def extract_function_name(filter: Callable):
-    name = getattr(filter, "__name__", "Unknown").split("filter_", maxsplit=1)[-1]
+    name = getattr(filter, "__name__", "Unknown")
     if isinstance(filter, partial):
-        name = getattr(filter.func, "__name__", "Unknown").split("filter_", maxsplit=1)[
-            -1
-        ]
+        name = getattr(filter.func, "__name__", "Unknown")
     return name
 
 
 def filter(
-    df, filter: Union[pl.Expr, Callable], name: Union[str, None] = None, id_col="id"
-) -> Tuple[pl.LazyFrame, pl.DataFrame]:
+    df, fltr: Union[pl.Expr, Callable], id_col="id"
+) -> Tuple[pl.LazyFrame, list[pl.LazyFrame]]:
     """Common filtering API. Returns filtered dataframe and metadata on the filtered IDs.
 
     Args:
@@ -28,41 +26,43 @@ def filter(
     Returns:
         Tuple with filtered lazy dataframe and metadata
     """
-    start = time.monotonic()
     # Cast to lazy
     df = df.lazy()
 
-    len_in = df.select(pl.len()).collect()
+    len_in = df.select(pl.len())
     ids = df.select(id_col)
 
-    if isinstance(filter, pl.Expr):
-        df_out = df.filter(filter)
+    if isinstance(fltr, pl.Expr):
+        df_out = df.filter(fltr)
     else:
-        df_out = filter(df)
+        df_out = fltr(df)
 
-    len_out = df_out.select(pl.len()).collect()
-    filtered = ids.join(df_out, on=id_col, how="anti").collect().get_column(id_col)
+    len_out = df_out.select(pl.len())
+    filtered = ids.join(df_out, on=id_col, how="anti").select(id_col)
 
-    if name is None:
-        # Add default name from function name
-        name = extract_function_name(filter)
+    stat = [len_in, len_out, filtered]
 
-    end = time.monotonic()
-    stat = {
-        "name": name,
-        "before": len_in,
-        "after": len_out,
-        "reduction": len_in - len_out,
-        "duration": end - start,
-        "ids": [filtered],
-    }
+    return df_out, stat
 
-    return df_out, pl.DataFrame(stat)
+
+def assemble_meta_frame(
+    meta_information: list[pl.LazyFrame], name: Union[str, None] = None
+) -> pl.DataFrame:
+    evaluated = pl.collect_all(meta_information)
+
+    return pl.DataFrame(
+        {
+            "before": [x.item() for x in evaluated[0::3]],
+            "after": [x.item() for x in evaluated[1::3]],
+            "ids": [x.get_columns()[0] for x in evaluated[2::3]],
+            "name": name,
+        }
+    )
 
 
 def apply_filters(
     df: Union[pl.DataFrame, pl.LazyFrame], filters: list
-) -> Tuple[pl.LazyFrame, pl.DataFrame]:
+) -> Tuple[pl.LazyFrame, list[pl.LazyFrame], list[str]]:
     """Apply a set of filters in order to `df`.
 
     Args:
@@ -75,6 +75,7 @@ def apply_filters(
     df = df.lazy()
 
     stats = []
+    names = []
     filters = [item if isinstance(item, tuple) else (item, None) for item in filters]
 
     for f, *name in (pbar := tqdm(filters)):
@@ -83,6 +84,7 @@ def apply_filters(
             name = extract_function_name(f)
         pbar.set_postfix_str(str(name))
 
-        df, stat = filter(df, f, name)
-        stats.append(stat)
-    return df, pl.concat(stats)
+        df, stat = filter(df, f)
+        stats.extend(stat)
+        names.append(name)
+    return df, stats, names
