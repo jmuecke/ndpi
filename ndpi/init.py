@@ -1,7 +1,14 @@
 from copy import Error
+
 from enum import StrEnum
 from pathlib import Path
 from .constants import c_default_short_figsize
+
+# ACM recommended fonttypes
+import matplotlib
+
+matplotlib.rcParams["pdf.fonttype"] = 42
+matplotlib.rcParams["ps.fonttype"] = 42
 
 
 class GraphDefaults(StrEnum):
