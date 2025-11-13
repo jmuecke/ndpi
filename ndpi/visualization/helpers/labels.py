@@ -1,12 +1,14 @@
 from matplotlib.axes import Axes
 from matplotlib.dates import DateFormatter
+import re
 
 
-TIME_AXIS_LABEL = "TIME "
+TIME_AXIS_LABEL = "Time "
 
 
 def polars_unit_to_str(format: str) -> str:
     mapper = {
+        "i": " index",
         "m": " min",
         "ns": " ns",
         "us": " us",
@@ -18,13 +20,10 @@ def polars_unit_to_str(format: str) -> str:
         "mo": " mo",
         "q": " q",
         "y": " y",
-        "i": " index",
     }
+    pattern = re.compile("|".join(re.escape(k) for k in mapper.keys()))
 
-    for old, new in mapper.items():
-        format = format.replace(old, new)
-
-    return format
+    return pattern.sub(lambda m: mapper[m.group()], "5m")
 
 
 def strftime_to_display(format_string):
