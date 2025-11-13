@@ -1,3 +1,4 @@
+from contextlib import AsyncExitStack
 from pathlib import Path
 from enum import StrEnum
 
@@ -21,6 +22,14 @@ def fig_ax(figsize: tuple = c_figsize, **kwargs) -> Tuple[Figure, Axes]:
         tuple[Figure, Axes]: similar to plt.subplots
     """
     return plt.subplots(figsize=figsize, **kwargs)
+
+
+def legend_upper_center(ax: Axes, **kwargs):
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1), **kwargs)
+
+
+def legend_upper_right(ax: Axes, **kwargs):
+    ax.legend(loc="lower right", bbox_to_anchor=(0.5, 1), **kwargs)
 
 
 def save_plot(
