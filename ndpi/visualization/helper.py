@@ -9,6 +9,7 @@ from typing import Tuple
 
 from ndpi.init import c_figsize
 from ndpi.config import FIGURES_DIR
+from ndpi.visualization.helpers.labels import set_time_format
 
 
 def fig_ax(figsize: tuple = c_figsize, **kwargs) -> Tuple[Figure, Axes]:
