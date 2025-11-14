@@ -23,7 +23,7 @@ def polars_unit_to_str(format: str) -> str:
     }
     pattern = re.compile("|".join(re.escape(k) for k in mapper.keys()))
 
-    return pattern.sub(lambda m: mapper[m.group()], "5m")
+    return pattern.sub(lambda m: mapper[m.group()], format)
 
 
 def strftime_to_display(format_string):
@@ -45,6 +45,7 @@ def strftime_to_display(format_string):
         "%f": "microseconds",
         "%z": "timezone",
         "%Z": "TZ",
+        "\n": " ",
     }
 
     result = format_string

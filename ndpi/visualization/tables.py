@@ -1,3 +1,9 @@
+import re
+from collections import defaultdict
+from typing import Union
+from great_tables import GT
+
+
 def get_col_name_map(columns: str, pos: int = 0) -> dict:
     """Create dictionary with key the original column name and value the `pos` part of the column name.
         This is most useful with polars pivot table and Great Tables.
@@ -15,3 +21,59 @@ def get_col_name_map(columns: str, pos: int = 0) -> dict:
     """
 
     return {n: n[1:-1].split(",")[pos][1:-1] for n in columns if "{" in n}
+
+
+def add_spanner(gt: GT, mapper: dict, level: Union[int, None] = None) -> GT:
+    """Add Great Tables spanner based on a mapping dictionary and optionally specify level hierarchy. You can apply this function multiple times to add levels of spanners.
+
+    Args:
+        gt: great table
+        mapper: mapper dictionary
+        level: level of the tab_spanner
+
+    Returns:
+        table with spanner set
+    """
+    spanner_to_cols = defaultdict(list)
+    for col, spanner in mapper.items():
+        spanner_to_cols[spanner].append(col)
+
+    for spanner_label, columns in spanner_to_cols.items():
+        gt = gt.tab_spanner(label=spanner_label, columns=columns, level=level)
+    return gt
+
+
+def fix_gt_table(tbl: str, label: str):
+    """Adapt Great Tables latex output to common paper layout.
+
+        Removes:
+        - Formatting in caption
+        - tabular parameter
+        - setting of fontsize
+
+        Transforms:
+        - tabular* -> tabular
+        - table -> table*
+
+
+    Args:
+        tbl: gt.as_latex()
+        label: set \label{} of the table
+
+    Returns:
+        String with replacements and label
+    """
+    caption_pattern = r"\\caption\*\s*\{\s*\{\\large\s+([^}]+)\}\s*\}"
+    tbl = re.sub(caption_pattern, r"\\caption{\1}\n\\label{" + label + "}", tbl)
+
+    tabular_pattern = (
+        r"\\begin\{tabular\*\}\{\\linewidth\}\{@\{\\extracolsep\{\\fill\}\}\s*([^}]+)\}"
+    )
+    tbl = re.sub(tabular_pattern, r"\\begin{tabular}{\1}", tbl)
+    tbl = tbl.replace(r"\end{tabular*}", r"\end{tabular}")
+
+    tbl = tbl.replace(r"\end{table}", r"\end{table*}")
+    tbl = tbl.replace(r"\begin{table}", r"\end{table*}")
+
+    tbl = re.sub(r"\n?\\fontsize\{[^}]+\}\{[^}]+\}\\selectfont\s*\n?", "", tbl)
+    return tbl
