@@ -21,9 +21,11 @@ def polars_unit_to_str(format: str) -> str:
         "q": " q",
         "y": " y",
     }
-    pattern = re.compile("|".join(re.escape(k) for k in mapper.keys()))
+    pattern = re.compile(
+        r"(\d+)(" + "|".join(re.escape(k) for k in mapper.keys()) + r")\b"
+    )
 
-    return pattern.sub(lambda m: mapper[m.group()], "5m")
+    return pattern.sub(lambda m: m.group(1) + mapper[m.group(2)], format)
 
 
 def strftime_to_display(format_string):
@@ -45,6 +47,7 @@ def strftime_to_display(format_string):
         "%f": "microseconds",
         "%z": "timezone",
         "%Z": "TZ",
+        "\n": " ",
     }
 
     result = format_string
@@ -54,12 +57,13 @@ def strftime_to_display(format_string):
     return result
 
 
-def set_time_format(axis, format: str, unit: str):
-    axis.set_label_text(time_label(format, unit))
+def set_time_format(axis, format: str, unit: str, prefix: str = TIME_AXIS_LABEL):
+    axis.set_label_text(time_label(format, unit, prefix))
     axis.set_major_formatter(DateFormatter(format))
 
 
-def time_label(format: str, unit: str):
-    return (
-        f"{TIME_AXIS_LABEL} {strftime_to_display(format)} [{polars_unit_to_str(unit)}]"
-    )
+def time_label(format: str, unit: str, prefix: str = TIME_AXIS_LABEL):
+    formatted_unit = ""
+    if unit != "":
+        formatted_unit = f" [{polars_unit_to_str(unit)}]"
+    return f"{prefix} {strftime_to_display(format)}{formatted_unit}"
