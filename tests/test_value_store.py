@@ -4,7 +4,7 @@ import polars as pl
 import pytest
 from loguru import logger
 
-from ndpi.tex import TexValues, fmt_date, fmt_eng, fmt_percent
+from ndpi.value_store import ValueStore, fmt_date, fmt_eng, fmt_percent
 
 
 @pytest.fixture
@@ -24,41 +24,41 @@ def base_lf():
 
 
 def test_register_rejects_bad_names():
-    store = TexValues()
+    store = ValueStore()
     for bad in ["a\\b", "a{b", "a}b", "a%b", "a#b", "a b", "a\tb", "a\nb", ""]:
         with pytest.raises(ValueError):
             store.register(bad, 1)
 
 
 def test_register_duplicate_raises():
-    store = TexValues()
+    store = ValueStore()
     store.register("x", 1)
     with pytest.raises(ValueError, match="duplicate"):
         store.register("x", 2)
 
 
 def test_register_note_with_newline_rejected():
-    store = TexValues()
+    store = ValueStore()
     with pytest.raises(ValueError, match="newline"):
         store.register("x", 1, note="line1\nline2")
 
 
 def test_lazy_query_collected_and_extracted(base_lf):
-    store = TexValues()
+    store = ValueStore()
     store.register("total", base_lf.select(pl.col("a").sum()))
     store.collect()
     assert store["total"] == 6
 
 
 def test_eager_dataframe_extracted_without_collect():
-    store = TexValues()
+    store = ValueStore()
     store.register("val", pl.DataFrame({"a": [42]}))
     store.collect()
     assert store["val"] == 42
 
 
 def test_plain_value_untouched():
-    store = TexValues()
+    store = ValueStore()
     store.register("hardcoded", "2.1M rows")
     store.register("num", 1234)
     # plain values are resolved immediately, readable before collect()
@@ -70,7 +70,7 @@ def test_plain_value_untouched():
 
 def test_individual_matches_batched(base_lf):
     def build():
-        store = TexValues()
+        store = ValueStore()
         store.register("sum-a", base_lf.select(pl.col("a").sum()))
         store.register("max-b", base_lf.select(pl.col("b").max()))
         return store
@@ -90,7 +90,7 @@ def test_individual_matches_batched(base_lf):
     ],
 )
 def test_validation_error_isolated_and_named(df, warnings):
-    store = TexValues()
+    store = ValueStore()
     store.register("bad-entry", df)
     store.register("good", 1)
     store.collect()
@@ -101,14 +101,14 @@ def test_validation_error_isolated_and_named(df, warnings):
 
 
 def test_validation_error_strict_raises():
-    store = TexValues()
+    store = ValueStore()
     store.register("bad-entry", pl.DataFrame({"a": [1, 2]}))
     with pytest.raises(ValueError, match="bad-entry"):
         store.collect(strict=True)
 
 
 def test_errored_entry_written_as_placeholder(tmp_path):
-    store = TexValues()
+    store = ValueStore()
     store.register("bad-entry", pl.DataFrame({"a": [1, 2]}))
     store.collect()
     path = tmp_path / "values.tex"
@@ -118,7 +118,7 @@ def test_errored_entry_written_as_placeholder(tmp_path):
 
 
 def test_collect_all_fallback_keeps_good_entries(base_lf, warnings):
-    store = TexValues()
+    store = ValueStore()
     store.register("good", base_lf.select(pl.col("a").sum()))
     store.register("poisoned", base_lf.select(pl.col("nonexistent").sum()))
     store.collect()
@@ -129,7 +129,7 @@ def test_collect_all_fallback_keeps_good_entries(base_lf, warnings):
 
 
 def test_errored_emit_false_not_written_but_logged(tmp_path, warnings, base_lf):
-    store = TexValues()
+    store = ValueStore()
     store.register(
         "hidden-bad", base_lf.select(pl.col("nonexistent")), emit=False
     )
@@ -143,7 +143,7 @@ def test_errored_emit_false_not_written_but_logged(tmp_path, warnings, base_lf):
 
 
 def test_repeat_collect_skips_errored(warnings):
-    store = TexValues()
+    store = ValueStore()
     store.register("bad-entry", pl.DataFrame({"a": [1, 2]}))
     store.collect()
     assert len([m for m in warnings if "bad-entry" in m]) == 1
@@ -152,7 +152,7 @@ def test_repeat_collect_skips_errored(warnings):
 
 
 def test_collect_idempotent_with_late_registration(base_lf):
-    store = TexValues()
+    store = ValueStore()
     store.register("first", base_lf.select(pl.col("a").sum()))
     store.collect()
     store.register("second", base_lf.select(pl.col("b").max()))
@@ -162,7 +162,7 @@ def test_collect_idempotent_with_late_registration(base_lf):
 
 
 def test_derived_value_pattern(base_lf):
-    store = TexValues()
+    store = ValueStore()
     store.register("total", base_lf.select(pl.col("a").sum()))
     store.register("failed", base_lf.select(pl.col("a").min()), emit=False)
     store.collect()
@@ -175,7 +175,7 @@ def test_derived_value_pattern(base_lf):
 
 
 def test_getitem_unknown_unresolved_errored(base_lf):
-    store = TexValues()
+    store = ValueStore()
     store.register("pending", base_lf.select(pl.col("a").sum()))
     store.register("bad-entry", pl.DataFrame({"a": [1, 2]}))
     with pytest.raises(KeyError, match="unknown"):
@@ -188,14 +188,14 @@ def test_getitem_unknown_unresolved_errored(base_lf):
 
 
 def test_write_raises_before_collect(tmp_path, base_lf):
-    store = TexValues()
+    store = ValueStore()
     store.register("pending", base_lf.select(pl.col("a").sum()))
     with pytest.raises(RuntimeError, match="pending"):
         store.write(tmp_path / "values.tex")
 
 
 def test_fmt_applied_only_at_write(tmp_path):
-    store = TexValues()
+    store = ValueStore()
     store.register("share", 13.37, fmt=fmt_percent(digits=1))
     # stored value stays raw so it can feed derived computations
     assert store["share"] == 13.37
@@ -205,7 +205,7 @@ def test_fmt_applied_only_at_write(tmp_path):
 
 
 def test_escaping_of_tex_specials(tmp_path):
-    store = TexValues()
+    store = ValueStore()
     store.register("nasty", "100% & #1_x $ \\cmd")
     path = tmp_path / "values.tex"
     store.write(path, xspace=False)
@@ -216,7 +216,7 @@ def test_escaping_of_tex_specials(tmp_path):
 
 
 def test_braces_round_trip_balanced(tmp_path):
-    store = TexValues()
+    store = ValueStore()
     store.register("braced", "{a} and }b{")
     path = tmp_path / "values.tex"
     store.write(path, xspace=False)
@@ -230,7 +230,7 @@ def test_braces_round_trip_balanced(tmp_path):
 
 
 def test_xspace_toggle(tmp_path):
-    store = TexValues()
+    store = ValueStore()
     store.register("v", 1)
     with_xspace = tmp_path / "with.tex"
     without_xspace = tmp_path / "without.tex"
@@ -241,7 +241,7 @@ def test_xspace_toggle(tmp_path):
 
 
 def test_note_written_as_comment(tmp_path):
-    store = TexValues()
+    store = ValueStore()
     store.register("hc", "2.1M", note="FIXME hardcoded, see issue #12")
     path = tmp_path / "values.tex"
     store.write(path, xspace=False)
@@ -249,7 +249,7 @@ def test_note_written_as_comment(tmp_path):
 
 
 def test_emit_false_absent_from_output(tmp_path):
-    store = TexValues()
+    store = ValueStore()
     store.register("visible", 1)
     store.register("intermediate", 2, emit=False)
     path = tmp_path / "values.tex"
@@ -261,21 +261,21 @@ def test_emit_false_absent_from_output(tmp_path):
 
 
 def test_formatted_value_with_newline_rejected(tmp_path):
-    store = TexValues()
+    store = ValueStore()
     store.register("multiline", "a\nb")
     with pytest.raises(ValueError, match="newline"):
         store.write(tmp_path / "values.tex")
 
 
 def test_full_file_snapshot(tmp_path, base_lf):
-    store = TexValues()
+    store = ValueStore()
     store.register("num-scanners", base_lf.select(pl.col("a").sum()))
     store.register("domains", 2_100_000, fmt=fmt_eng(), note="FIXME hardcoded")
     store.collect()
     path = tmp_path / "values.tex"
     store.write(path)
     assert path.read_text() == (
-        "% auto-generated by ndpi.tex.TexValues -- do not edit\n"
+        "% auto-generated by ndpi.value_store.ValueStore -- do not edit\n"
         "% requires \\usepackage{xspace} when xspace is enabled\n"
         "\\providecommand{\\setval}[2]"
         "{\\expandafter\\gdef\\csname texval@#1\\endcsname{#2}}\n"
@@ -285,6 +285,72 @@ def test_full_file_snapshot(tmp_path, base_lf):
         "\\setval{num-scanners}{6\\xspace}\n"
         "\\setval{domains}{2.1M\\xspace} % FIXME hardcoded\n"
     )
+
+
+def test_markdown_snapshot(tmp_path, base_lf):
+    store = ValueStore()
+    store.register("num-scanners", base_lf.select(pl.col("a").sum()))
+    store.register("domains", 2_100_000, fmt=fmt_eng(), note="FIXME hardcoded")
+    store.collect()
+    expected = (
+        "| Name         | Value | Note            |\n"
+        "|--------------|-------|-----------------|\n"
+        "| num-scanners | 6     |                 |\n"
+        "| domains      | 2.1M  | FIXME hardcoded |\n"
+    )
+    assert store.to_markdown() == expected
+    path = tmp_path / "values.md"
+    store.write_markdown(path)
+    assert path.read_text() == expected
+
+
+def test_markdown_no_tex_escaping_or_xspace():
+    store = ValueStore()
+    store.register("share", 13.37, fmt=fmt_percent(digits=1))
+    table = store.to_markdown()
+    assert "13.4%" in table
+    assert "\\%" not in table
+    assert "xspace" not in table
+
+
+def test_markdown_note_column_dropped_when_empty():
+    store = ValueStore()
+    store.register("v", 1)
+    table = store.to_markdown()
+    assert "Note" not in table
+    assert table.splitlines()[0] == "| Name | Value |"
+
+
+def test_markdown_pipe_escaped():
+    store = ValueStore()
+    store.register("piped", "a|b")
+    lines = store.to_markdown().splitlines()
+    assert "a\\|b" in lines[2]
+    # separator count stays consistent across all rows
+    assert lines[2].count(" | ") == lines[0].count(" | ")
+
+
+def test_markdown_errored_entry_as_placeholder():
+    store = ValueStore()
+    store.register("bad-entry", pl.DataFrame({"a": [1, 2]}))
+    store.collect()
+    table = store.to_markdown()
+    assert "ERR" in table
+    assert "ERROR:" in table
+
+
+def test_markdown_raises_before_collect(base_lf):
+    store = ValueStore()
+    store.register("pending", base_lf.select(pl.col("a").sum()))
+    with pytest.raises(RuntimeError, match="pending"):
+        store.to_markdown()
+
+
+def test_markdown_emit_false_absent():
+    store = ValueStore()
+    store.register("visible", 1)
+    store.register("intermediate", 2, emit=False)
+    assert "intermediate" not in store.to_markdown()
 
 
 def test_fmt_eng():
