@@ -1,5 +1,5 @@
 from typing import Union
-from .config import PROCESSED_DATA_DIR
+from .settings import settings
 from pathlib import Path
 import polars as pl
 import os
@@ -10,7 +10,7 @@ def load_data(
     name: Union[str, list[str]],
     skip_missing: bool = False,
     default_ext: str = ".pq.zst",
-    directory: Path = PROCESSED_DATA_DIR,
+    directory: Path | None = None,
     **kwargs,
 ) -> pl.LazyFrame:
     """Read one or more files from directory in concise notation.
@@ -19,12 +19,14 @@ def load_data(
         name: input file or files
         skip_missing: if True skip missing files otherwise throws an error
         default_ext: expected extension after each input filename
-        directory: directory to search for files to read
+        directory: directory to search for files to read, default: settings.processed_data_dir
         **kwargs: kwargs for pl.scan_parquet
 
     Returns:
         pl.LazyFrame from all input files
     """
+    directory = directory or settings.processed_data_dir
+
     files = name
     if not isinstance(files, list):
         files = [name]
