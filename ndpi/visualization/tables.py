@@ -119,6 +119,19 @@ def stacked_header(text: str, width: str = "1.6cm", align: str = "r") -> Text:
     )
 
 
+def _match_brace(text: str, open_idx: int) -> int:
+    """Return the index of the `}` matching the `{` at text[open_idx]."""
+    depth = 0
+    for i in range(open_idx, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+    raise ValueError("Unbalanced braces")
+
+
 def fix_gt_table(tbl: str, label: str):
     r"""Adapt Great Tables latex output to common paper layout.
 
@@ -139,8 +152,26 @@ def fix_gt_table(tbl: str, label: str):
     Returns:
         String with replacements and label
     """
-    caption_pattern = r"\\caption\*\s*\{\s*\{\\large\s+([^}]+)\}\s*\}"
-    tbl = re.sub(caption_pattern, r"\\caption{\1}\n\\label{" + label + "}", tbl)
+    caption_marker = r"\caption*{"
+    start = tbl.find(caption_marker)
+    if start != -1:
+        # Great Tables emits `\caption*{\n{\large <title>}\n} `. <title> may
+        # itself contain braced LaTeX commands (e.g. \cite{...}), so braces
+        # must be matched by depth rather than with a `[^}]+` regex.
+        outer_open = start + len(caption_marker) - 1
+        outer_close = _match_brace(tbl, outer_open)
+        outer_content = tbl[outer_open + 1 : outer_close].strip()
+
+        inner_open = outer_content.index("{")
+        inner_close = _match_brace(outer_content, inner_open)
+        title = outer_content[inner_open + 1 : inner_close]
+        title = re.sub(r"^\\large\s+", "", title)
+
+        tbl = (
+            tbl[:start]
+            + f"\\caption{{{title}}}\n\\label{{{label}}}"
+            + tbl[outer_close + 1 :]
+        )
 
     tabular_pattern = (
         r"\\begin\{tabular\*\}\{\\linewidth\}\{@\{\\extracolsep\{\\fill\}\}\s*([^}]+)\}"
