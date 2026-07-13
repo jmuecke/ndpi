@@ -2,6 +2,7 @@ import re
 from collections import defaultdict
 from typing import Union
 from great_tables import GT
+from great_tables._text import Text
 
 
 def get_col_name_map(columns: str, pos: int = 0) -> dict:
@@ -43,8 +44,83 @@ def add_spanner(gt: GT, mapper: dict, level: Union[int, None] = None) -> GT:
     return gt
 
 
+def escape_latex(text: str) -> str:
+    """Escape LaTeX special characters in a plain string.
+
+    Great Tables does not escape LaTeX body-cell content, whether or not
+    the column goes through `.fmt()`. Free-text columns (e.g. domain
+    names that may contain `_`) must therefore be escaped by hand before
+    being handed to `GT`, typically via `.fmt(fns=escape_latex, columns=...)`.
+
+    Args:
+        text: raw string to escape
+
+    Returns:
+        string with LaTeX special characters escaped
+    """
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+    }
+    pattern = re.compile("|".join(re.escape(k) for k in replacements))
+    return pattern.sub(lambda m: replacements[m.group()], text)
+
+
+def raw_latex(text: str) -> Text:
+    """Wrap a string so Great Tables emits it as-is into LaTeX output, unescaped.
+
+    Useful for `cols_label()`/`tab_header()` text that already contains
+    LaTeX markup. Relies on Great Tables' internal `Text` class, since GT
+    has no public "as-is" text helper equivalent to its `md()`/`html()`
+    constructors.
+
+    Args:
+        text: literal LaTeX to emit unescaped
+
+    Returns:
+        object usable as a cols_label()/tab_header() value
+    """
+    return Text(text)
+
+
+def stacked_header(text: str, width: str = "1.6cm", align: str = "r") -> Text:
+    r"""Wrap a long column header onto multiple lines via a LaTeX paragraph column.
+
+    Great Tables has no LaTeX support for wrapped headers (`cols_width()`
+    is a no-op for `as_latex()`), so this nests a `p{width}` single-cell
+    tabular and lets LaTeX itself choose the line breaks at word
+    boundaries to fit `width`, rather than the caller specifying where
+    each line ends. `#`, `[` and `]` are escaped so a `[` that ends up
+    right after a LaTeX-inserted `\\` line break isn't parsed as an
+    optional-argument.
+
+    Args:
+        text: full header text, e.g. "Second-Level Domains [#]"
+        width: LaTeX width of the paragraph column, e.g. "1.6cm"
+        align: text alignment inside the paragraph column: "r"/"l"/"c"
+            (implemented via \raggedleft/\raggedright/\centering, since
+            p{} columns are left-aligned by default)
+
+    Returns:
+        object usable as a cols_label() value
+    """
+    ragged = {"r": r"\raggedleft", "l": r"\raggedright", "c": r"\centering"}[align]
+    text = text.replace("#", r"\#").replace("[", "{[}").replace("]", "{]}")
+    return raw_latex(
+        rf"\begin{{tabular}}[c]{{@{{}}p{{{width}}}@{{}}}}{ragged} {text}\end{{tabular}}"
+    )
+
+
 def fix_gt_table(tbl: str, label: str):
-    """Adapt Great Tables latex output to common paper layout.
+    r"""Adapt Great Tables latex output to common paper layout.
 
         Removes:
         - Formatting in caption
@@ -73,7 +149,7 @@ def fix_gt_table(tbl: str, label: str):
     tbl = tbl.replace(r"\end{tabular*}", r"\end{tabular}")
 
     tbl = tbl.replace(r"\end{table}", r"\end{table*}")
-    tbl = tbl.replace(r"\begin{table}", r"\end{table*}")
+    tbl = tbl.replace(r"\begin{table}", r"\begin{table*}")
 
     tbl = re.sub(r"\n?\\fontsize\{[^}]+\}\{[^}]+\}\\selectfont\s*\n?", "", tbl)
     return tbl
